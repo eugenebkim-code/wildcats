@@ -2,6 +2,7 @@
 
 import logging
 
+from telegram import BotCommand, BotCommandScopeAllPrivateChats, BotCommandScopeChat
 from telegram.ext import (
     Application,
     CallbackQueryHandler,
@@ -11,7 +12,7 @@ from telegram.ext import (
     filters,
 )
 
-from config import BOT_TOKEN, GOOGLE_CREDENTIALS_PATH, GOOGLE_SPREADSHEET_ID
+from config import ADMIN_IDS, BOT_TOKEN, GOOGLE_CREDENTIALS_PATH, GOOGLE_SPREADSHEET_ID
 from database import init_db
 from google_logger import glogger
 from handlers.admin import (
@@ -143,7 +144,34 @@ def main() -> None:
             spreadsheet_id=GOOGLE_SPREADSHEET_ID,
         )
 
-    app = Application.builder().token(BOT_TOKEN).build()
+    # ── register bot commands (shown in Telegram "/" menu) ──────────────────
+    async def post_init(application: Application) -> None:  # type: ignore[type-arg]
+        user_commands = [
+            BotCommand("start", "Главное меню / сменить язык"),
+        ]
+        await application.bot.set_my_commands(
+            user_commands,
+            scope=BotCommandScopeAllPrivateChats(),
+        )
+        admin_commands = user_commands + [
+            BotCommand("admin",   "Панель администратора — статистика"),
+            BotCommand("history", "История наблюдений с фильтрами"),
+            BotCommand("obs",     "Детали наблюдения: /obs <id>"),
+            BotCommand("verify",  "Подтвердить наблюдение: /verify <id>"),
+            BotCommand("doubt",   "Отметить сомнительным: /doubt <id>"),
+            BotCommand("list",    "Список наблюдений постранично"),
+            BotCommand("export",  "Выгрузить все данные в CSV"),
+        ]
+        for admin_id in ADMIN_IDS:
+            try:
+                await application.bot.set_my_commands(
+                    admin_commands,
+                    scope=BotCommandScopeChat(chat_id=admin_id),
+                )
+            except Exception:
+                pass
+
+    app = Application.builder().token(BOT_TOKEN).post_init(post_init).build()
 
     # ── admin commands (outside conversation, higher priority) ──────────────
     app.add_handler(CommandHandler("admin",   admin_command),  group=0)
