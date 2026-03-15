@@ -37,7 +37,7 @@ Edit mode:
 import re
 from datetime import datetime
 
-from telegram import InputMediaPhoto, ReplyKeyboardRemove, Update
+from telegram import ReplyKeyboardRemove, Update
 from telegram.ext import ContextTypes
 
 import assets as _assets
@@ -128,14 +128,21 @@ def _build_summary(data: dict, lang: str) -> str:
 
 
 async def _send_species_gallery(chat_id: int, context: ContextTypes.DEFAULT_TYPE, lang: str) -> None:
-    """Send a labelled photo album of all species that have images."""
-    media: list[InputMediaPhoto] = []
-    for key, _ in _assets.SPECIES_PHOTOS.items():
+    """Send each species as its own photo with a select button underneath."""
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+    for key in _assets.SPECIES_PHOTOS:
         data = _assets.photo_bytes(key)
-        if data:
-            media.append(InputMediaPhoto(media=data, caption=species_name(key, lang)))
-    if media:
-        await context.bot.send_media_group(chat_id=chat_id, media=media)
+        if not data:
+            continue
+        name = species_name(key, lang)
+        kb = InlineKeyboardMarkup([[InlineKeyboardButton(f"✓  {name}", callback_data=f"species_{key}")]])
+        await context.bot.send_photo(chat_id=chat_id, photo=data, caption=name, reply_markup=kb)
+
+    # "Not sure" has no photo — send as a standalone button
+    unsure = species_name("unsure", lang)
+    kb = InlineKeyboardMarkup([[InlineKeyboardButton(unsure, callback_data="species_unsure")]])
+    await context.bot.send_message(chat_id=chat_id, text=unsure, reply_markup=kb)
 
 
 async def _show_confirmation(send_fn, lang: str, data: dict) -> int:
@@ -163,18 +170,11 @@ async def start_observation(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         "language": lang,
     }
 
-    # Acknowledge button tap (remove inline keyboard from welcome message)
+    # Acknowledge button tap
     await query.edit_message_text(t(lang, "step_species"), parse_mode="Markdown")
 
-    # Send labelled photo gallery of all species
+    # Send each species as individual photo + select button
     await _send_species_gallery(query.message.chat_id, context, lang)  # type: ignore[union-attr]
-
-    # Send species selection keyboard as a new message below the gallery
-    await query.message.reply_text(  # type: ignore[union-attr]
-        t(lang, "step_species"),
-        parse_mode="Markdown",
-        reply_markup=species_kb(lang),
-    )
     return SELECTING_SPECIES
 
 
@@ -188,11 +188,18 @@ async def select_species(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     _obs(context)["species"] = query.data.removeprefix("species_")  # type: ignore[union-attr]
     await _log(update, "species_selected", _obs(context)["species"])
 
+    # Button is on a photo message — remove the keyboard to mark it as selected,
+    # then reply with the next step as a new message (can't edit_message_text on photos)
+    try:
+        await query.edit_message_reply_markup(reply_markup=None)
+    except Exception:
+        pass
+
     if _is_editing(context):
         context.user_data.pop("editing_field")  # type: ignore[union-attr]
-        return await _show_confirmation(query.edit_message_text, lang, _obs(context))
+        return await _show_confirmation(query.message.reply_text, lang, _obs(context))  # type: ignore[union-attr]
 
-    await query.edit_message_text(
+    await query.message.reply_text(  # type: ignore[union-attr]
         t(lang, "step_obs_type"),
         parse_mode="Markdown",
         reply_markup=obs_type_kb(lang),
@@ -599,15 +606,10 @@ async def handle_edit_field(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     context.user_data["editing_field"] = action.removeprefix("edit_")  # type: ignore[index]
     await _log(update, "edit_field_selected", action.removeprefix("edit_"))
 
-    # For species selection, send the photo gallery first
+    # For species selection, send individual photo + button per species
     if action == "edit_species":
         await query.edit_message_text(t(lang, text_key), parse_mode="Markdown")
         await _send_species_gallery(query.message.chat_id, context, lang)  # type: ignore[union-attr]
-        await query.message.reply_text(  # type: ignore[union-attr]
-            t(lang, text_key),
-            parse_mode="Markdown",
-            reply_markup=kb_fn(lang) if kb_fn else None,
-        )
         return next_state
 
     kb = kb_fn(lang) if kb_fn else None

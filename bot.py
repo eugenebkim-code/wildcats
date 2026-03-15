@@ -11,12 +11,7 @@ from telegram.ext import (
     filters,
 )
 
-from config import (
-    BOT_TOKEN,
-    GOOGLE_CREDENTIALS_PATH,
-    GOOGLE_DRIVE_FOLDER_ID,
-    GOOGLE_SPREADSHEET_ID,
-)
+from config import BOT_TOKEN, GOOGLE_CREDENTIALS_PATH, GOOGLE_SPREADSHEET_ID
 from database import init_db
 from google_logger import glogger
 from handlers.admin import (
@@ -24,6 +19,8 @@ from handlers.admin import (
     admin_command,
     doubt_command,
     export_command,
+    history_callback,
+    history_command,
     list_command,
     obs_command,
     verify_command,
@@ -144,7 +141,6 @@ def main() -> None:
         glogger.init(
             credentials_path=GOOGLE_CREDENTIALS_PATH,
             spreadsheet_id=GOOGLE_SPREADSHEET_ID,
-            drive_folder_id=GOOGLE_DRIVE_FOLDER_ID or None,
         )
 
     app = Application.builder().token(BOT_TOKEN).build()
@@ -155,9 +151,11 @@ def main() -> None:
     app.add_handler(CommandHandler("obs",     obs_command),    group=0)
     app.add_handler(CommandHandler("verify",  verify_command), group=0)
     app.add_handler(CommandHandler("doubt",   doubt_command),  group=0)
-    app.add_handler(CommandHandler("export",  export_command), group=0)
+    app.add_handler(CommandHandler("export",  export_command),  group=0)
+    app.add_handler(CommandHandler("history", history_command), group=0)
     # Admin inline buttons (verify/doubt from /obs message)
-    app.add_handler(CallbackQueryHandler(admin_callback, pattern=r"^adm_"), group=0)
+    app.add_handler(CallbackQueryHandler(admin_callback,    pattern=r"^adm_"),  group=0)
+    app.add_handler(CallbackQueryHandler(history_callback,  pattern=r"^hist:"), group=0)
 
     # ── main conversation ────────────────────────────────────────────────────
     app.add_handler(build_conversation(), group=1)

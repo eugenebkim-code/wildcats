@@ -151,6 +151,65 @@ def update_status(obs_id: int, status: str) -> None:
         )
 
 
+def delete_observation(obs_id: int) -> None:
+    with _conn() as con:
+        con.execute("DELETE FROM observations WHERE id=?", (obs_id,))
+
+
+# ── filtered history queries ──────────────────────────────────────────────────
+
+def _filter_clause(filter_str: str) -> tuple[str, list]:
+    """Return (WHERE clause, params) for a given filter string."""
+    if filter_str == "today":
+        return "DATE(created_at) = DATE('now')", []
+    if filter_str == "week":
+        return "DATE(created_at) >= DATE('now', '-6 days')", []
+    if filter_str == "month":
+        return "strftime('%Y-%m', created_at) = strftime('%Y-%m', 'now')", []
+    if len(filter_str) == 7 and filter_str[4] == "-":   # YYYY-MM
+        return "strftime('%Y-%m', created_at) = ?", [filter_str]
+    return "1=1", []
+
+
+def get_observations_filtered(
+    filter_str: str, limit: int = 10, offset: int = 0
+) -> list[dict]:
+    clause, params = _filter_clause(filter_str)
+    with _conn() as con:
+        rows = con.execute(
+            f"SELECT * FROM observations WHERE {clause} ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            params + [limit, offset],
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def count_observations_filtered(filter_str: str) -> int:
+    clause, params = _filter_clause(filter_str)
+    with _conn() as con:
+        row = con.execute(
+            f"SELECT COUNT(*) AS n FROM observations WHERE {clause}", params
+        ).fetchone()
+    return row["n"]
+
+
+def get_available_years() -> list[int]:
+    with _conn() as con:
+        rows = con.execute(
+            "SELECT DISTINCT strftime('%Y', created_at) AS y FROM observations ORDER BY y DESC"
+        ).fetchall()
+    return [int(r["y"]) for r in rows if r["y"]]
+
+
+def get_available_months(year: int) -> list[int]:
+    with _conn() as con:
+        rows = con.execute(
+            "SELECT DISTINCT CAST(strftime('%m', created_at) AS INTEGER) AS m "
+            "FROM observations WHERE strftime('%Y', created_at) = ? ORDER BY m",
+            (str(year),),
+        ).fetchall()
+    return [r["m"] for r in rows if r["m"]]
+
+
 def get_stats() -> dict[str, int]:
     with _conn() as con:
         total    = con.execute("SELECT COUNT(*) AS n FROM observations").fetchone()["n"]
