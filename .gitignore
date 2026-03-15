@@ -1,0 +1,13 @@
+# Secrets & credentials — never commit these
+.env
+assets/service_account.json
+
+# Database
+*.db
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
