@@ -34,6 +34,8 @@ TEXTS: dict[str, dict[str, str]] = {
         # ── step 3 ──────────────────────────────────────────────────────
         "step_photos": (
             "📸 *Шаг 3 из 8 — Фотографии*\n\n"
+            "Как загрузить фото:\n"
+            "📎 Нажмите на *скрепку* (вложение) внизу экрана → выберите фото из галереи\n\n"
             "Отправьте одно или несколько фото.\n"
             "Когда закончите — нажмите «Готово».\n\n"
             "Если фото нет — нажмите «Пропустить»."
@@ -153,6 +155,8 @@ TEXTS: dict[str, dict[str, str]] = {
         "step_obs_type": "📋 *8 dan 2-qadam — Kuzatish turi*\n\nKuzatish turini tanlang:",
         "step_photos": (
             "📸 *8 dan 3-qadam — Fotosuratlar*\n\n"
+            "Foto yuborish uchun:\n"
+            "📎 Pastdagi *qisqich* (fayl) tugmasini bosing → galereyadan foto tanlang\n\n"
             "Bir yoki bir nechta foto yuboring.\n"
             "Tugatgach — «Tayyor» tugmasini bosing.\n\n"
             "Foto yo'q bo'lsa — «O'tkazib yuborish» ni bosing."
@@ -264,6 +268,8 @@ TEXTS: dict[str, dict[str, str]] = {
         "step_obs_type": "📋 *Step 2 of 8 — Observation type*\n\nSelect the type of your observation:",
         "step_photos": (
             "📸 *Step 3 of 8 — Photos*\n\n"
+            "How to send a photo:\n"
+            "📎 Tap the *paperclip* (attachment) at the bottom → choose a photo from your gallery\n\n"
             "Send one or more photos.\n"
             "When done — press «Done».\n\n"
             "If no photos — press «Skip»."
